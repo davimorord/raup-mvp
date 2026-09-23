@@ -1,0 +1,30 @@
+# Secretos
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Datos (nunca commitear datos)
+data/
+uploads/
+*.db
+*.sqlite
+*.sqlite3
+*.json.bak
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# IDE / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
