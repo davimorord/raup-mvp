@@ -16,11 +16,12 @@ _MODE_DESCRIPTIONS = {
 }
 
 _RESPONSE_FORMAT = """
-Respond in exactly this format, nothing else:
+Respond in exactly this format, nothing else — do not wrap the question in quote marks:
 QUESTION: <the question, in Spanish>
 TYPE: YES_NO or TEXT
-DONE: YES if the objectives above are now adequately covered (or you were told to wrap up), \
-NO otherwise. When DONE is YES, QUESTION can be empty.
+DONE: YES only if the objectives above are adequately covered AND nothing the patient already \
+mentioned is left unexplored (or you were told to wrap up); NO otherwise. When DONE is YES, \
+QUESTION can be empty.
 """.strip()
 
 
@@ -59,6 +60,11 @@ important nuance, and don't demand free text when a quick answer would do just a
 
 Never ask about something already covered by a previous answer. Never ask about anything \
 outside the objectives above.
+
+If the patient's own answer raises something specific and relevant (a symptom, a change, a \
+worry) without enough detail to be useful to the clinician, follow up on THAT before moving to \
+a new topic or declaring the interview done — do not let a concrete lead the patient already \
+raised go unexplored just because a fixed number of questions has been asked.
 {closing_line}
 
 {_RESPONSE_FORMAT}

@@ -33,6 +33,17 @@ _QUESTION_RE = re.compile(r"^\s*QUESTION\s*:\s*(.+?)\s*$", re.IGNORECASE | re.MU
 _TYPE_RE = re.compile(r"^\s*TYPE\s*:\s*(YES_NO|TEXT)\s*$", re.IGNORECASE | re.MULTILINE)
 _DONE_RE = re.compile(r"^\s*DONE\s*:\s*(YES|NO)\s*$", re.IGNORECASE | re.MULTILINE)
 
+_WRAPPING_QUOTES = '"\'“”‘’'
+
+
+def _strip_wrapping_quotes(text: str) -> str:
+    # the model sometimes wraps the question in quote marks even though the
+    # format doesn't ask for them (e.g. QUESTION: "¿...?") — strip one
+    # matching pair, never quotes that are just part of the sentence.
+    if len(text) >= 2 and text[0] in _WRAPPING_QUOTES and text[-1] in _WRAPPING_QUOTES:
+        return text[1:-1].strip()
+    return text
+
 
 def parse_response(raw_text: str) -> ParsedStep:
     done_match = _DONE_RE.search(raw_text)
@@ -49,4 +60,4 @@ def parse_response(raw_text: str) -> ParsedStep:
         # stripped of any other protocol lines that did parse
         question = _TYPE_RE.sub("", _DONE_RE.sub("", raw_text)).strip()
 
-    return ParsedStep(question=question, question_type=question_type, done=done)
+    return ParsedStep(question=_strip_wrapping_quotes(question), question_type=question_type, done=done)

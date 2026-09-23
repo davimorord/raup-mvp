@@ -1,10 +1,10 @@
 # RaUP MVP
 
-AI-guided pre-visit questionnaire for one-on-one clinical consultations. See [CLAUDE.md](CLAUDE.md) for scope and rules, and [DECISIONS.md](DECISIONS.md) for the reasoning behind every technical decision.
+AI-guided pre-visit questionnaire for one-on-one clinical consultations. Live pilot: **[pilot-raup.streamlit.app](https://pilot-raup.streamlit.app)**. See [CLAUDE.md](CLAUDE.md) for scope and rules, and [DECISIONS.md](DECISIONS.md) for the reasoning behind every technical decision.
 
 ## Status
 
-Step 6 of the plan done: the report engine is live end to end — an executive summary, deterministic nutrition alerts (MUST/SCOFF-inspired, D-022), and up to 5 areas to explore, generated automatically the moment the patient finishes and shown on the clinician's lookup screen (with a raw-transcript fallback if generation ever fails). Verified against the real MedGemma endpoint, including two real bugs a live test caught and fixed (D-022): the model can't be trusted to compute a percentage, and it fell into a repetition loop without an explicit item cap. Steps 1-5 (persistence, screens, LLM client + safety filter, live MedGemma, adaptive questionnaire) are done.
+Step 7 done: deployed to Streamlit Community Cloud, connected to this public GitHub repo (see D-023). All 6 previous steps are done and verified against the real MedGemma endpoint — persistence, clinician/patient screens, the LLM client with its regulatory safety filter, the adaptive questionnaire, and the report engine (executive summary, deterministic nutrition alerts, areas to explore). The first real user test (D-023) already found and fixed three issues no test suite caught: an answer box that didn't clear between questions, stray quote marks in a model-generated question, and a questionnaire that ended slightly early. Currently in manual testing before opening it up to external clinicians for feedback — still no real patients.
 
 ## Local setup
 

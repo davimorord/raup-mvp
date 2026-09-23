@@ -42,3 +42,15 @@ def test_defaults_to_text_type_when_type_line_missing_or_invalid():
     raw = "QUESTION: ¿Algo más que contarnos?\nDONE: NO"
     result = parse_response(raw)
     assert result.question_type == "TEXT"
+
+
+def test_strips_wrapping_quotes_the_model_sometimes_adds():
+    raw = 'QUESTION: "¿Cuándo comenzaron estos síntomas?"\nTYPE: TEXT\nDONE: NO'
+    result = parse_response(raw)
+    assert result.question == "¿Cuándo comenzaron estos síntomas?"
+
+
+def test_does_not_strip_a_quote_that_is_part_of_the_sentence():
+    raw = 'QUESTION: El paciente dijo "me duele" ¿podría ampliar eso?\nTYPE: TEXT\nDONE: NO'
+    result = parse_response(raw)
+    assert result.question == 'El paciente dijo "me duele" ¿podría ampliar eso?'

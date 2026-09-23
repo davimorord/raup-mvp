@@ -122,15 +122,25 @@ def _finish_questionnaire(
 def _show_question(session: Session, step: QuestionnaireStep, answer_repo: AnswerRepository) -> None:
     st.subheader(step.question)
 
+    # the question number is folded into the widget keys below so each new
+    # question gets a fresh, empty widget — otherwise Streamlit keeps
+    # reusing the same widget identity across reruns and the answer box
+    # keeps showing the previous answer instead of clearing.
+    question_number = len(answer_repo.list_by_session(session.id)) + 1
+
     if step.question_type == "YES_NO":
         col_yes, col_no = st.columns(2)
-        if col_yes.button("Sí", use_container_width=True):
+        if col_yes.button("Sí", key=f"raup_yes_{session.id}_{question_number}", use_container_width=True):
             _save_answer(session, step, "Sí", answer_repo)
-        if col_no.button("No", use_container_width=True):
+        if col_no.button("No", key=f"raup_no_{session.id}_{question_number}", use_container_width=True):
             _save_answer(session, step, "No", answer_repo)
     else:
-        with st.form(f"raup_answer_form_{session.id}"):
-            answer_text = st.text_area("Tu respuesta", label_visibility="collapsed")
+        with st.form(f"raup_answer_form_{session.id}_{question_number}"):
+            answer_text = st.text_area(
+                "Tu respuesta",
+                label_visibility="collapsed",
+                key=f"raup_answer_text_{session.id}_{question_number}",
+            )
             submitted = st.form_submit_button("Siguiente")
         if submitted and answer_text.strip():
             _save_answer(session, step, answer_text.strip(), answer_repo)
