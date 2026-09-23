@@ -4,7 +4,7 @@ AI-guided pre-visit questionnaire for one-on-one clinical consultations. Live pi
 
 ## Status
 
-Step 7 done: deployed to Streamlit Community Cloud, connected to this public GitHub repo (see D-023). All 6 previous steps are done and verified against the real MedGemma endpoint — persistence, clinician/patient screens, the LLM client with its regulatory safety filter, the adaptive questionnaire, and the report engine (executive summary, deterministic nutrition alerts, areas to explore). The first real user test (D-023) already found and fixed three issues no test suite caught: an answer box that didn't clear between questions, stray quote marks in a model-generated question, and a questionnaire that ended slightly early. Currently in manual testing before opening it up to external clinicians for feedback — still no real patients.
+Step 7 done: deployed to Streamlit Community Cloud, connected to this public GitHub repo (see D-023). All 6 previous steps are done and verified against the real MedGemma endpoint. Real user testing (D-023, D-024) already found and fixed four issues no test suite caught, the most serious being MedGemma repeating near-identical questions within a single session — a prompt instruction alone didn't stop it, so `raup/questionnaire/dedup.py` now rejects a repeated question deterministically before it ever reaches the patient, with a scripted live re-run confirming zero repeats. Currently in manual testing before opening it up to external clinicians for feedback — still no real patients.
 
 ## Local setup
 
@@ -41,6 +41,7 @@ Language convention (see D-013, D-014): code identifiers, comments, and document
 - `raup/questionnaire/objectives.py` — the information checklist the questionnaire aims to cover.
 - `raup/questionnaire/prompts.py` — builds the questionnaire's task-specific prompts.
 - `raup/questionnaire/protocol.py` — parses the model's per-turn `QUESTION/TYPE/DONE` response.
+- `raup/questionnaire/dedup.py` — deterministic repeated-question detection (see D-024).
 - `raup/questionnaire/engine.py` — `get_next_step`, ties the above together; the one entry point `raup/ui/patient.py` uses.
 - `raup/report/extraction.py` — pulls raw facts (never computed values) out of the transcript (see D-022).
 - `raup/report/alerts.py` — deterministic MUST/SCOFF-inspired threshold checks, nutrition-only for now (D-009, D-022).

@@ -58,13 +58,13 @@ needed (describing a symptom, a situation, anything you can't anticipate fixed o
 Mix both kinds deliberately; don't force every question into a scale when it would lose \
 important nuance, and don't demand free text when a quick answer would do just as well.
 
-Never ask about something already covered by a previous answer. Never ask about anything \
-outside the objectives above.
-
-If the patient's own answer raises something specific and relevant (a symptom, a change, a \
-worry) without enough detail to be useful to the clinician, follow up on THAT before moving to \
-a new topic or declaring the interview done — do not let a concrete lead the patient already \
-raised go unexplored just because a fixed number of questions has been asked.
+Before writing your question, re-read the transcript below. NEVER ask something that is the \
+same as, or a paraphrase/rewording of, a question already in the transcript — check every \
+previous Q, not just the last one. If the patient's own answer raised something specific and \
+relevant (a symptom, a change, a worry) without enough detail, you may follow up on it, but \
+the follow-up must be a NEW, more specific question (e.g. ask for a detail, a timeframe, or a \
+cause that hasn't been asked yet) — never the same question again, and never just to double-\
+check something the patient already answered clearly.
 {closing_line}
 
 {_RESPONSE_FORMAT}

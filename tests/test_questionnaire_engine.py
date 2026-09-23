@@ -1,4 +1,4 @@
-from raup.models import ConsultationMode, Session
+from raup.models import Answer, ConsultationMode, Session
 from raup.questionnaire.engine import get_next_step
 from tests.fakes import FakeLLMClient
 
@@ -57,6 +57,49 @@ def test_ends_gracefully_if_the_model_can_only_produce_unsafe_output():
     step = get_next_step(client, _session(), previous_answers=[], elapsed_seconds=10)
 
     assert step.done is True
+
+
+def test_rejects_a_duplicate_question_and_retries():
+    previous_answers = [Answer(session_id="s1", order=1, question="¿Cómo ha sido su adherencia?", answer="Bien")]
+    client = FakeLLMClient(
+        responses=[
+            "QUESTION: ¿Cómo ha sido su adherencia?\nTYPE: TEXT\nDONE: NO",  # duplicate
+            "QUESTION: ¿Ha notado cambios en su nivel de energía?\nTYPE: TEXT\nDONE: NO",  # fresh
+        ]
+    )
+
+    step = get_next_step(client, _session(), previous_answers, elapsed_seconds=30)
+
+    assert step.done is False
+    assert step.question == "¿Ha notado cambios en su nivel de energía?"
+    assert len(client.calls) == 2
+
+
+def test_gives_up_and_ends_after_repeated_duplicates_instead_of_showing_one():
+    previous_answers = [Answer(session_id="s1", order=1, question="¿Cómo ha sido su adherencia?", answer="Bien")]
+    client = FakeLLMClient(
+        responses=["QUESTION: ¿Cómo ha sido su adherencia?\nTYPE: TEXT\nDONE: NO"] * 3
+    )
+
+    step = get_next_step(client, _session(), previous_answers, elapsed_seconds=30)
+
+    assert step.done is True
+    assert len(client.calls) == 3
+
+
+def test_duplicate_retry_reminder_names_the_repeated_question():
+    previous_answers = [Answer(session_id="s1", order=1, question="¿Cómo ha sido su adherencia?", answer="Bien")]
+    client = FakeLLMClient(
+        responses=[
+            "QUESTION: ¿Cómo ha sido su adherencia?\nTYPE: TEXT\nDONE: NO",
+            "QUESTION: ¿Algo distinto?\nTYPE: TEXT\nDONE: NO",
+        ]
+    )
+
+    get_next_step(client, _session(), previous_answers, elapsed_seconds=30)
+
+    _, second_user_prompt = client.calls[1]
+    assert "repeats something already asked" in second_user_prompt
 
 
 def test_passes_consultation_reason_and_specialty_into_the_prompt():
