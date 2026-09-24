@@ -13,6 +13,18 @@ from tests.fakes import (
 _HARNESS = str(Path(__file__).parent / "apps" / "harness_patient.py")
 
 
+def _answer_repo_covering_mandatory_topics(session: Session) -> InMemoryAnswerRepository:
+    """So the model's DONE is accepted — otherwise the coverage check (D-026)
+    correctly adds a fixed mandatory question instead of ending."""
+    from raup.models import Answer
+    from raup.questionnaire.coverage import get_mandatory_topics
+
+    repo = InMemoryAnswerRepository()
+    for i, topic in enumerate(get_mandatory_topics(session)):
+        repo.add(Answer(session_id=session.id, order=i + 1, question=topic.fallback_question, answer="No"))
+    return repo
+
+
 def test_invalid_code_shows_error():
     at = AppTest.from_file(_HARNESS)
     at.session_state["test_code"] = "NOEXISTE"
@@ -131,6 +143,7 @@ def test_reaching_done_marks_session_completed_and_generates_report():
 
     at = AppTest.from_file(_HARNESS)
     at.session_state["session_repo"] = session_repo
+    at.session_state["answer_repo"] = _answer_repo_covering_mandatory_topics(session)
     at.session_state["report_repo"] = report_repo
     at.session_state["llm_client"] = FakeLLMClient(
         responses=[
@@ -156,11 +169,12 @@ def test_reaching_done_marks_session_completed_and_generates_report():
 
 def test_report_generation_failure_does_not_break_the_thank_you_screen():
     session_repo = InMemorySessionRepository()
-    session_repo.create(Session(code="FAIL01", mode=ConsultationMode.FOLLOW_UP))
+    session = session_repo.create(Session(code="FAIL01", mode=ConsultationMode.FOLLOW_UP))
     report_repo = InMemoryReportRepository()
 
     at = AppTest.from_file(_HARNESS)
     at.session_state["session_repo"] = session_repo
+    at.session_state["answer_repo"] = _answer_repo_covering_mandatory_topics(session)
     at.session_state["report_repo"] = report_repo
     # only one scripted response — extraction's own call runs out of responses
     at.session_state["llm_client"] = FakeLLMClient(responses=["QUESTION:\nTYPE: TEXT\nDONE: YES"])

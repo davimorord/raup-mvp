@@ -2,11 +2,15 @@
 
 `get_next_step` is the one entry point raup/ui/patient.py uses: given the
 session, the answers so far, and elapsed time, it returns either the next
-question to ask or a signal that the interview is done. The time/question
-cutoff is enforced here in code, deterministically — never left to the LLM
-(see budget.py); the LLM only ever gets to decide "done" *early*, within
-that hard boundary. Repeated questions are also caught and rejected here
-(see dedup.py, D-024) rather than trusted to the model's own instructions.
+question to ask or a signal that the interview is done. Every stopping and
+repetition rule is enforced here in code, never left to the LLM:
+
+- time/question budget, a hard cutoff checked before any LLM call (budget.py)
+- repeated questions, rejected and retried (dedup.py, D-024/D-025)
+- mandatory topics, which the LLM can't skip by declaring itself done early
+  (coverage.py, D-026)
+
+The LLM only ever decides *which* question to ask, within those bounds.
 """
 
 from __future__ import annotations
@@ -17,6 +21,7 @@ from raup.llm.base import LLMClient
 from raup.llm.safe_client import UnsafeOutputError, generate_safely
 from raup.models import Answer, Session
 from raup.questionnaire.budget import get_budget, is_in_closing_window, is_over_budget
+from raup.questionnaire.coverage import get_mandatory_topics, next_required_question
 from raup.questionnaire.dedup import is_duplicate_question
 from raup.questionnaire.objectives import get_objectives
 from raup.questionnaire.prompts import build_system_prompt, build_user_prompt
@@ -32,28 +37,61 @@ class QuestionnaireStep:
     question_type: str = "TEXT"
 
 
+def _fixed_step(required: tuple[str, str]) -> QuestionnaireStep:
+    question, question_type = required
+    return QuestionnaireStep(done=False, question=question, question_type=question_type)
+
+
 def get_next_step(
     llm_client: LLMClient, session: Session, previous_answers: list[Answer], elapsed_seconds: float
 ) -> QuestionnaireStep:
-    questions_asked = len(previous_answers)
-
-    # hard, deterministic cutoff — checked before ever calling the LLM
-    if is_over_budget(session.mode, elapsed_seconds, questions_asked):
+    # hard, deterministic cutoff — checked before ever calling the LLM. Time
+    # is the maximum (D-020): uncovered mandatory topics then surface in the
+    # report's "areas to explore" instead of extending the interview.
+    if is_over_budget(session.mode, elapsed_seconds, len(previous_answers)):
         return QuestionnaireStep(done=True)
 
-    budget = get_budget(session.mode)
-    objectives = get_objectives(session.mode)
+    required = next_required_question(session, previous_answers)
     in_closing_window = is_in_closing_window(session.mode, elapsed_seconds)
-    system_prompt = build_system_prompt(session, objectives, in_closing_window)
+
+    # last minute: mandatory topics take priority over whatever the model
+    # would ask — no LLM call needed
+    if in_closing_window and required:
+        return _fixed_step(required)
+
+    step = _ask_llm(llm_client, session, previous_answers, elapsed_seconds, in_closing_window)
+
+    # the model can't end the interview early while a mandatory topic is
+    # uncovered, or only ever got a bare "Sí" (D-026)
+    if step.done and required:
+        return _fixed_step(required)
+    return step
+
+
+def _ask_llm(
+    llm_client: LLMClient,
+    session: Session,
+    previous_answers: list[Answer],
+    elapsed_seconds: float,
+    in_closing_window: bool,
+) -> QuestionnaireStep:
+    budget = get_budget(session.mode)
+    system_prompt = build_system_prompt(
+        session,
+        get_objectives(session.mode),
+        in_closing_window,
+        mandatory_topics=[t.prompt_description for t in get_mandatory_topics(session)],
+    )
     base_user_prompt = build_user_prompt(previous_answers, elapsed_seconds, budget)
     user_prompt = base_user_prompt
 
-    for attempt in range(_MAX_DUPLICATE_RETRIES + 1):
+    for _ in range(_MAX_DUPLICATE_RETRIES + 1):
         try:
             raw_response = generate_safely(llm_client, system_prompt, user_prompt)
         except UnsafeOutputError:
             # the model couldn't produce a safe question after retries (see
-            # D-016) — end the interview rather than risk showing anything
+            # D-016) — stop asking it; get_next_step may still add a fixed
+            # mandatory question, which is static and safe
             return QuestionnaireStep(done=True)
 
         parsed = parse_response(raw_response)
@@ -72,6 +110,5 @@ def get_next_step(
             "about a different, unexplored angle, or answer DONE: YES if nothing meaningfully new is left."
         )
 
-    # exhausted retries without a fresh question — end gracefully rather
-    # than show the patient a repeated question
+    # exhausted retries without a fresh question
     return QuestionnaireStep(done=True)

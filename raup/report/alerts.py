@@ -11,12 +11,11 @@ from __future__ import annotations
 
 from raup.models import Alert
 from raup.report.extraction import ExtractedFields
-
-_NUTRITION_KEYWORD = "nutrici"  # matches "Nutrición" / "nutricion", case-insensitive
+from raup.specialty import is_nutrition
 
 
 def applies_to(specialty: str) -> bool:
-    return _NUTRITION_KEYWORD in specialty.lower()
+    return is_nutrition(specialty)
 
 
 def _must_weight_loss_alert(fields: ExtractedFields) -> list[Alert]:

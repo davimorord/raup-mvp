@@ -25,8 +25,24 @@ QUESTION can be empty.
 """.strip()
 
 
-def build_system_prompt(session: Session, objectives: list[str], in_closing_window: bool) -> str:
+def build_system_prompt(
+    session: Session,
+    objectives: list[str],
+    in_closing_window: bool,
+    mandatory_topics: list[str] | None = None,
+) -> str:
     objectives_text = "\n".join(f"- {o}" for o in objectives)
+    # Deliberately says nothing about the code-level fallback (D-026): an
+    # earlier wording mentioned it, and the model then declared DONE after a
+    # single question, leaving the whole checklist to the fixed questions.
+    mandatory_text = (
+        "\n\nYou must also cover each of these before finishing. Start by exploring the "
+        "consultation reason itself, then weave these in naturally where they fit — never open "
+        "the interview with them as a checklist:\n"
+        + "\n".join(f"- {t}" for t in mandatory_topics)
+        if mandatory_topics
+        else ""
+    )
     reason_line = (
         f'The clinician already recorded the patient\'s reason for this consultation: '
         f'"{session.consultation_reason}". This is already known — NEVER ask the patient what '
@@ -52,7 +68,7 @@ You are conducting a structured pre-visit interview for a {session.specialty} co
 
 Your goal is to gather enough information to cover the following, adapting the specific \
 questions to the specialty and to what the patient has already said:
-{objectives_text}
+{objectives_text}{mandatory_text}
 
 Ask ONE question at a time. Mark it TYPE: YES_NO whenever it's naturally answerable with just \
 yes or no — e.g. "¿Toma alguna medicación actualmente?", "¿Ha tenido este síntoma antes?", \
