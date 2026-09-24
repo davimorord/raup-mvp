@@ -94,6 +94,36 @@ def test_answering_a_yes_no_question_via_button():
     assert any("¿Cuál?" in s.value for s in at.subheader)
 
 
+def test_double_submit_of_the_same_question_saves_only_one_answer():
+    # a live test produced two identical Q&A rows, typo included (D-025): a
+    # double-submit, not two separate answers. The second write must be skipped.
+    from raup.questionnaire.engine import QuestionnaireStep
+
+    session_repo = InMemorySessionRepository()
+    session = session_repo.create(Session(code="DBL001", mode=ConsultationMode.FIRST_VISIT))
+    answer_repo = InMemoryAnswerRepository()
+    from raup.models import Answer
+
+    answer_repo.add(Answer(session_id=session.id, order=1, question="¿Cómo se encuentra?", answer="Bien"))
+
+    at = AppTest.from_file(_HARNESS)
+    at.session_state["session_repo"] = session_repo
+    at.session_state["answer_repo"] = answer_repo
+    at.session_state["llm_client"] = FakeLLMClient(responses=["QUESTION: ¿Algo más?\nTYPE: TEXT\nDONE: NO"])
+    at.session_state["test_code"] = "DBL001"
+    # the step for the question that was ALREADY answered is still on screen
+    at.session_state[f"raup_step_{session.id}"] = QuestionnaireStep(
+        done=False, question="¿Cómo se encuentra?", question_type="TEXT"
+    )
+    at.run()
+
+    at.text_area[0].set_value("Bien")
+    at.button[0].click().run()
+
+    assert not at.exception
+    assert len(answer_repo.list_by_session(session.id)) == 1
+
+
 def test_reaching_done_marks_session_completed_and_generates_report():
     session_repo = InMemorySessionRepository()
     session = session_repo.create(Session(code="DONE01", mode=ConsultationMode.FOLLOW_UP))

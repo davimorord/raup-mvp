@@ -28,8 +28,11 @@ QUESTION can be empty.
 def build_system_prompt(session: Session, objectives: list[str], in_closing_window: bool) -> str:
     objectives_text = "\n".join(f"- {o}" for o in objectives)
     reason_line = (
-        f'The patient\'s stated reason for this consultation: "{session.consultation_reason}". '
-        "Use it heavily to focus your questions — it's the main context you have."
+        f'The clinician already recorded the patient\'s reason for this consultation: '
+        f'"{session.consultation_reason}". This is already known — NEVER ask the patient what '
+        "their reason for consulting is, what brings them in, or anything equivalent; that "
+        "question is already answered. Your very first question must instead go directly "
+        "deeper into that stated reason (a detail, a timeframe, an impact it's had)."
         if session.consultation_reason
         else "No consultation reason was given upfront — your first question should establish "
         "what brings the patient in today."
@@ -51,12 +54,18 @@ Your goal is to gather enough information to cover the following, adapting the s
 questions to the specialty and to what the patient has already said:
 {objectives_text}
 
-Ask ONE question at a time. Favor short, low-effort questions (yes/no, a 1-10 scale, a pick \
-from a short list) whenever a quick answer is enough — the patient is answering on their \
-phone and effort matters. Use a free-text question when the patient's own words are genuinely \
-needed (describing a symptom, a situation, anything you can't anticipate fixed options for). \
-Mix both kinds deliberately; don't force every question into a scale when it would lose \
-important nuance, and don't demand free text when a quick answer would do just as well.
+Ask ONE question at a time. Mark it TYPE: YES_NO whenever it's naturally answerable with just \
+yes or no — e.g. "¿Toma alguna medicación actualmente?", "¿Ha tenido este síntoma antes?", \
+"¿Ha notado fiebre?" are all YES_NO, even though the topic could be explored further later in \
+a separate, follow-up question. Only mark it TYPE: TEXT when the answer itself needs to be a \
+description, a number, or a choice from more than two options (a symptom, a timeframe, a scale \
+rating, a list of medications). The patient is answering on their phone, so default to YES_NO \
+whenever it fits — don't make a question open-ended just because the topic is important.
+
+Each question must ask about exactly ONE thing. Never bundle several sub-questions into one \
+(e.g. "what foods do you eat, and has how often you eat them changed?") — the patient answers \
+only one part, then feels asked twice when you follow up on the other. Ask them separately, one \
+per turn.
 
 Before writing your question, re-read the transcript below. NEVER ask something that is the \
 same as, or a paraphrase/rewording of, a question already in the transcript — check every \
@@ -74,8 +83,16 @@ check something the patient already answered clearly.
 def build_user_prompt(previous_answers: list[Answer], elapsed_seconds: float, budget: QuestionnaireBudget) -> str:
     if not previous_answers:
         transcript = "(No questions asked yet — this is the first question.)"
+        already_asked = ""
     else:
         transcript = "\n".join(f'Q{a.order}: "{a.question}"\nA{a.order}: "{a.answer}"' for a in previous_answers)
+        # a separate numbered blocklist is far more salient to a small model
+        # than expecting it to scan the transcript for repeats (see D-025)
+        asked_list = "\n".join(f"{a.order}. {a.question}" for a in previous_answers)
+        already_asked = (
+            "\n\nQuestions ALREADY ASKED — do not ask any of these again, and do not ask anything "
+            f"that overlaps with them, even in part:\n{asked_list}"
+        )
 
     remaining = max(0, budget.time_budget_seconds - elapsed_seconds)
     time_note = (
@@ -83,4 +100,4 @@ def build_user_prompt(previous_answers: list[Answer], elapsed_seconds: float, bu
         f"({int(remaining)}s remaining)."
     )
 
-    return f"{time_note}\n\nTranscript so far:\n{transcript}\n\nGenerate the next step."
+    return f"{time_note}\n\nTranscript so far:\n{transcript}{already_asked}\n\nGenerate the next step."

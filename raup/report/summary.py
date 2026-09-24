@@ -16,7 +16,10 @@ _SYSTEM_PROMPT = """
 Write a short executive summary, in Spanish, for the clinician who is about to see this \
 patient. Summarize ONLY what the patient reported in the transcript below — never add an \
 interpretation, a possible cause, a diagnosis, or a recommendation. Write it as a clinician's \
-handoff note: neutral, factual, in third person ("El paciente refiere..."), 3-5 sentences.
+handoff note: neutral, factual, in third person ("El paciente refiere..."), 3-5 sentences. Keep \
+the concrete details the patient gave — the names of any medication, how often and for how long \
+they take it (including a change in that frequency), timeframes, and named foods or symptoms — \
+rather than generalizing them away ("uses antacids" loses what the clinician most needs).
 """.strip()
 
 

@@ -147,8 +147,17 @@ def _show_question(session: Session, step: QuestionnaireStep, answer_repo: Answe
 
 
 def _save_answer(session: Session, step: QuestionnaireStep, answer_text: str, answer_repo: AnswerRepository) -> None:
-    order = len(answer_repo.list_by_session(session.id)) + 1
-    answer_repo.add(Answer(session_id=session.id, order=order, question=step.question, answer=answer_text))
+    existing = answer_repo.list_by_session(session.id)
+
+    # Idempotency guard (see D-025): the same question can't be answered twice
+    # in a row. A live test produced two identical Q&A rows, typo included —
+    # a double-submit (a second click or a resend while the model is still
+    # thinking), not two separate answers. Skip the write, keep the flow moving.
+    already_answered = bool(existing) and existing[-1].question == step.question
+    if not already_answered:
+        answer_repo.add(
+            Answer(session_id=session.id, order=len(existing) + 1, question=step.question, answer=answer_text)
+        )
     _clear_step(session)
     st.rerun()
 
